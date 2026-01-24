@@ -63,6 +63,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@edgeone/nuxt-pages": "^1.0.14",
     "tsx": "^4.21.0",
     "vite-plugin-wasm": "^3.5.0"
   },

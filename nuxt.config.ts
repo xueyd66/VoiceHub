@@ -76,7 +76,7 @@ export default defineNuxtConfig({
   
   // 服务器端配置
   nitro: {
-    preset: process.env.VERCEL ? 'vercel' : process.env.EDGEONE ? 'node-server' : (process.env.NITRO_PRESET || 'node-server'),
+    preset: process.env.VERCEL ? 'vercel' : (process.env.NITRO_PRESET || 'node-server'),
     // 增强错误处理和稳定性
     experimental: {
       wasm: true
@@ -158,11 +158,6 @@ export default defineNuxtConfig({
       experimental: {
         wasm: true
       }
-    } : process.env.EDGEONE ? {
-      // EdgeOne Pages 环境：确保 Drizzle 正确打包
-      experimental: {
-        wasm: true
-      }
     } : {
       // 其他环境：使用标准配置
     })
@@ -178,7 +173,7 @@ export default defineNuxtConfig({
     assetsInclude: ['**/*.wasm'],
     // SSR配置
     ssr: {
-      noExternal: process.env.NETLIFY || process.env.EDGEONE ? ['drizzle-orm', 'postgres'] : (process.env.VERCEL ? [] : ['drizzle-orm', 'postgres'])
+      noExternal: process.env.NETLIFY ? ['drizzle-orm', 'postgres'] : (process.env.VERCEL ? [] : ['drizzle-orm', 'postgres'])
     }
   }
 })

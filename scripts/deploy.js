@@ -85,13 +85,6 @@ function checkEnvironment() {
 async function deploy() {
   log('🚀 开始部署流程...', 'bright');
   
-  // 检测部署平台
-  const platform = process.env.EDGEONE ? 'EdgeOne Pages' : 
-                   process.env.VERCEL ? 'Vercel' : 
-                   process.env.NETLIFY ? 'Netlify' : 
-                   '其他平台';
-  log(`📦 检测到部署平台: ${platform}`, 'cyan');
-  
   try {
     // 0. 检查环境
     checkEnvironment();
@@ -156,10 +149,53 @@ async function deploy() {
     
     // 5. 构建应用
     logStep('🔨', '构建应用...');
+
+    // EdgeOne 预处理
+    let edgeOneBuilder = null;
+    if (process.env.EDGEONE) {
+      logStep('☁️', '检测到 EdgeOne 环境，执行预构建处理...');
+      try {
+        const edgeOne = await import('@edgeone/nuxt-pages');
+        edgeOneBuilder = edgeOne;
+        // EdgeOne 插件会修改 nuxt.config.ts 配置 Nitro 输出
+        await edgeOne.onPreBuild({
+          cwd: process.cwd(),
+          env: process.env
+        });
+        logSuccess('EdgeOne 预构建处理完成');
+      } catch (error) {
+        logWarning(`EdgeOne 预构建失败: ${error.message}`);
+        // 如果预构建失败，可能不需要继续执行后续的 EdgeOne 步骤，或者应该中断
+        // 这里选择继续尝试标准构建
+        edgeOneBuilder = null; 
+      }
+    }
+
     if (!safeExec('npx nuxt build')) {
+      // 如果构建失败且进行了 EdgeOne 预处理，尝试恢复配置
+      if (edgeOneBuilder) {
+        try {
+          await edgeOneBuilder.onPostBuild({ cwd: process.cwd() });
+        } catch (e) { /* 忽略恢复时的错误 */ }
+      }
       throw new Error('应用构建失败');
     }
     logSuccess('应用构建完成');
+
+    // EdgeOne 后处理
+    if (edgeOneBuilder) {
+      logStep('☁️', '执行 EdgeOne 后构建处理...');
+      try {
+        await edgeOneBuilder.onBuild({ cwd: process.cwd() });
+        await edgeOneBuilder.onPostBuild({ cwd: process.cwd() });
+        logSuccess('EdgeOne 后构建处理完成');
+      } catch (error) {
+        logError(`EdgeOne 后构建失败: ${error.message}`);
+        // 如果后处理失败，整个部署应该算失败吗？
+        // 通常是的，因为产物可能不完整
+        throw error;
+      }
+    }
     
     // 6. 部署后检查
     logStep('🔍', '执行部署后检查...');
