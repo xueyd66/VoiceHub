@@ -163,9 +163,9 @@ export default defineNuxtConfig({
     } : process.env.EDGEONE || process.env.TEO ? {
       serveStatic: true,
       output: {
-        dir: '.output',
-        serverDir: '.output/server',
-        publicDir: '.output/public'
+        dir: '.edgeone',
+        serverDir: '.edgeone/server-handler',
+        publicDir: '.edgeone/assets'
       }
     } : {
       // 其他环境：使用标准配置

@@ -62,6 +62,24 @@ function safeExec(command, options = {}) {
   }
 }
 
+async function runEdgeOneBuild() {
+  logStep('⚡', '执行 EdgeOne Nuxt 构建流程...');
+  const { onPreBuild, onBuild, onPostBuild } = await import('@edgeone/nuxt-pages');
+  const buildOptions = {
+    cwd: process.cwd(),
+    env: process.env,
+    meta: {},
+    functions: {},
+    constants: {
+      PUBLISH_DIR: 'dist'
+    }
+  };
+  await onPreBuild(buildOptions);
+  await onBuild(buildOptions);
+  await onPostBuild(buildOptions);
+  logSuccess('EdgeOne 构建流程完成');
+}
+
 // 检查环境变量
 function checkEnvironment() {
   logStep('🔍', '检查环境配置...');
@@ -153,10 +171,24 @@ async function deploy() {
     
     // 5. 构建应用
     logStep('🔨', '构建应用...');
-    if (!safeExec('npx nuxt build')) {
+    if (isEdgeOne) {
+      await runEdgeOneBuild();
+    } else if (!safeExec('npx nuxt build')) {
       throw new Error('应用构建失败');
     }
     logSuccess('应用构建完成');
+    
+    if (isEdgeOne) {
+      if (!fileExists('.edgeone')) {
+        throw new Error('EdgeOne 构建输出目录不存在');
+      }
+      if (!fileExists('.edgeone/server-handler')) {
+        logWarning('EdgeOne 服务端目录不存在');
+      }
+      if (!fileExists('.edgeone/server-handler/handler.js')) {
+        logWarning('EdgeOne 入口函数文件不存在');
+      }
+    }
     
     // 6. 部署后检查
     logStep('🔍', '执行部署后检查...');
