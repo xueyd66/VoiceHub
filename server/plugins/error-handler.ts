@@ -1,8 +1,7 @@
 import {db} from '~/drizzle/db'
 import {sql} from 'drizzle-orm'
 
-// 避免使用 useNitroApp，直接在插件定义中使用 nitroApp 实例
-export default defineNitroPlugin(async (nitroApp) => {
+export default async (nitroApp: any) => {
     try {
         // 全局未处理的Promise拒绝处理器
         // 注意：在某些 Serverless 环境中，process 对象可能不完整
@@ -114,4 +113,4 @@ export default defineNitroPlugin(async (nitroApp) => {
         console.error('Error initializing error-handler plugin:', pluginError)
         // 即使插件初始化失败，也不应该阻止应用启动
     }
-})
+}
