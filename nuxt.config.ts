@@ -76,12 +76,17 @@ export default defineNuxtConfig({
   
   // 服务器端配置
   nitro: {
-    preset: process.env.VERCEL ? 'vercel' : (process.env.NITRO_PRESET || 'node-server'),
+    // 自动检测部署平台
+    preset: process.env.VERCEL ? 'vercel' : 
+            process.env.NETLIFY ? 'netlify' : 
+            process.env.EDGEONE || process.env.TEO ? 'node-server' : // EdgeOne Pages Node运行时
+            (process.env.NITRO_PRESET || 'node-server'),
     // 增强错误处理和稳定性
     experimental: {
       wasm: true
     },
-    timing: true,
+    // 禁用 timing 以避免在某些 Serverless 环境下出现 'logStart' 相关错误
+    timing: false,
     // 增加请求超时时间
     routeRules: {
       // 完全禁用所有API路由的缓存，确保每次都请求数据库
@@ -157,6 +162,14 @@ export default defineNuxtConfig({
       // Netlify 环境：确保 Drizzle 正确打包
       experimental: {
         wasm: true
+      }
+    } : (process.env.EDGEONE || process.env.TEO) ? {
+      // EdgeOne 环境配置
+      serveStatic: true, // 确保静态资源被正确服务
+      output: {
+        dir: '.output',
+        serverDir: '.output/server',
+        publicDir: '.output/public'
       }
     } : {
       // 其他环境：使用标准配置
