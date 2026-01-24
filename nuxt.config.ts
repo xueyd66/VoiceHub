@@ -182,6 +182,18 @@ export default defineNuxtConfig({
       include: ['drizzle-orm'],
       exclude: ['@applemusic-like-lyrics/vue', '@applemusic-like-lyrics/lyric']
     },
+    // 解决潜在的构建循环依赖问题
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('nitropack')) {
+              return 'nitropack'
+            }
+          }
+        }
+      }
+    },
     // 添加 WASM 支持配置
     assetsInclude: ['**/*.wasm'],
     // SSR配置

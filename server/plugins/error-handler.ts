@@ -65,6 +65,15 @@ export default defineNitroPlugin(async (nitroApp) => {
         clearInterval(healthCheckInterval)
     })
 
+    // 捕获 Nitro 错误
+    nitroApp.hooks.hook('error', (error, { event }) => {
+        console.error('[Nitro Error Hook] Error detected:', error.message)
+        console.error('[Nitro Error Hook] Stack:', error.stack)
+        if (event) {
+            console.error('[Nitro Error Hook] Path:', event.path)
+        }
+    })
+
     // 数据库连接错误的特殊处理
     const originalExecute = db.execute
     db.execute = new Proxy(originalExecute, {
