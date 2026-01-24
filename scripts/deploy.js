@@ -6,6 +6,10 @@ import {config} from 'dotenv';
 
 // 加载环境变量
 config();
+const isEdgeOne = !!(process.env.EDGEONE || process.env.TEO);
+if (isEdgeOne) {
+  process.env.EDGEONE = 'true';
+}
 
 // 颜色输出函数
 const colors = {
@@ -62,16 +66,6 @@ function safeExec(command, options = {}) {
 function checkEnvironment() {
   logStep('🔍', '检查环境配置...');
   
-  // 平台检测提示
-  if (process.env.VERCEL) log('📋 检测到 Vercel 环境', 'blue');
-  if (process.env.NETLIFY) log('📋 检测到 Netlify 环境', 'blue');
-  if (process.env.EDGEONE || process.env.TEO) {
-    log('📋 检测到 EdgeOne 环境', 'blue');
-    if (!process.env.DATABASE_URL) {
-      logWarning('EdgeOne 环境下未检测到 DATABASE_URL，数据库迁移可能会跳过');
-    }
-  }
-
   const requiredEnvVars = ['DATABASE_URL'];
   const missingVars = [];
   
@@ -127,7 +121,7 @@ async function deploy() {
     }
     
     // 3. 数据库同步
-    logStep('️', '执行数据库同步...');
+    logStep('🗄️', '执行数据库同步...');
     let dbSyncSuccess = false;
     if (process.env.DATABASE_URL) {
       const nonInteractiveEnv = {

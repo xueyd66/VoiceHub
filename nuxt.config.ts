@@ -76,19 +76,14 @@ export default defineNuxtConfig({
   
   // 服务器端配置
   nitro: {
-    // 自动检测部署平台
-    preset: process.env.EDGEONE || process.env.TEO ? 'node-server' : 
-            process.env.VERCEL ? 'vercel' : 
-            process.env.NETLIFY ? 'netlify' : 
-            (process.env.NITRO_PRESET || 'node-server'),
+    preset: process.env.EDGEONE || process.env.TEO
+      ? 'node-server'
+      : (process.env.VERCEL ? 'vercel' : (process.env.NITRO_PRESET || 'node-server')),
     // 增强错误处理和稳定性
     experimental: {
       wasm: true
     },
-    // 禁用 timing 以避免在某些 Serverless 环境下出现 'logStart' 相关错误
-    timing: false,
-    // 显式禁用 sourceMap 以减少构建体积和潜在问题
-    sourceMap: false,
+    timing: !(process.env.EDGEONE || process.env.TEO),
     // 增加请求超时时间
     routeRules: {
       // 完全禁用所有API路由的缓存，确保每次都请求数据库
@@ -165,9 +160,8 @@ export default defineNuxtConfig({
       experimental: {
         wasm: true
       }
-    } : (process.env.EDGEONE || process.env.TEO) ? {
-      // EdgeOne 环境配置
-      serveStatic: true, // 确保静态资源被正确服务
+    } : process.env.EDGEONE || process.env.TEO ? {
+      serveStatic: true,
       output: {
         dir: '.output',
         serverDir: '.output/server',
