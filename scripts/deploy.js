@@ -2,6 +2,7 @@
 
 import {execSync} from 'child_process';
 import fs from 'fs';
+import path from 'path';
 import {config} from 'dotenv';
 
 // 加载环境变量
@@ -65,6 +66,7 @@ function safeExec(command, options = {}) {
 async function runEdgeOneBuild() {
   logStep('⚡', '执行 EdgeOne Nuxt 构建流程...');
   const { onPreBuild, onBuild, onPostBuild } = await import('@edgeone/nuxt-pages');
+  const projectRoot = process.cwd();
   const buildOptions = {
     cwd: process.cwd(),
     env: process.env,
@@ -77,6 +79,18 @@ async function runEdgeOneBuild() {
   await onPreBuild(buildOptions);
   if (!safeExec('npx nuxt build')) {
     throw new Error('应用构建失败');
+  }
+  const nitroSourceDir = path.join(projectRoot, '.edgeone', 'server-handler', 'chunks', '_');
+  const nitroTargetDir = path.join(projectRoot, '.edgeone', 'server-handler', 'chunks', 'nitro');
+  const nitroFile = 'nitro.mjs';
+  const nitroMapFile = 'nitro.mjs.map';
+  if (fileExists(path.join(nitroSourceDir, nitroFile)) && !fileExists(path.join(nitroTargetDir, nitroFile))) {
+    fs.mkdirSync(nitroTargetDir, { recursive: true });
+    fs.copyFileSync(path.join(nitroSourceDir, nitroFile), path.join(nitroTargetDir, nitroFile));
+  }
+  if (fileExists(path.join(nitroSourceDir, nitroMapFile)) && !fileExists(path.join(nitroTargetDir, nitroMapFile))) {
+    fs.mkdirSync(nitroTargetDir, { recursive: true });
+    fs.copyFileSync(path.join(nitroSourceDir, nitroMapFile), path.join(nitroTargetDir, nitroMapFile));
   }
   await onBuild(buildOptions);
   await onPostBuild(buildOptions);

@@ -150,7 +150,7 @@ export default defineNuxtConfig({
     output: {
       dir: '.edgeone',
       publicDir: '.edgeone/assets',
-      serverDir: '.edgeone/server-handler',
+      serverDir: '.edgeone/server-handler'
     }
   },
   
