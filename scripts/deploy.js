@@ -2,15 +2,10 @@
 
 import {execSync} from 'child_process';
 import fs from 'fs';
-import path from 'path';
 import {config} from 'dotenv';
 
 // 加载环境变量
 config();
-const isEdgeOne = !!(process.env.EDGEONE || process.env.TEO);
-if (isEdgeOne) {
-  process.env.EDGEONE = 'true';
-}
 
 // 颜色输出函数
 const colors = {
@@ -63,40 +58,6 @@ function safeExec(command, options = {}) {
   }
 }
 
-async function runEdgeOneBuild() {
-  logStep('⚡', '执行 EdgeOne Nuxt 构建流程...');
-  const { onPreBuild, onBuild, onPostBuild } = await import('@edgeone/nuxt-pages');
-  const projectRoot = process.cwd();
-  const buildOptions = {
-    cwd: process.cwd(),
-    env: process.env,
-    meta: {},
-    functions: {},
-    constants: {
-      PUBLISH_DIR: 'dist'
-    }
-  };
-  await onPreBuild(buildOptions);
-  if (!safeExec('npx nuxt build')) {
-    throw new Error('应用构建失败');
-  }
-  const nitroSourceDir = path.join(projectRoot, '.edgeone', 'server-handler', 'chunks', '_');
-  const nitroTargetDir = path.join(projectRoot, '.edgeone', 'server-handler', 'chunks', 'nitro');
-  const nitroFile = 'nitro.mjs';
-  const nitroMapFile = 'nitro.mjs.map';
-  if (fileExists(path.join(nitroSourceDir, nitroFile)) && !fileExists(path.join(nitroTargetDir, nitroFile))) {
-    fs.mkdirSync(nitroTargetDir, { recursive: true });
-    fs.copyFileSync(path.join(nitroSourceDir, nitroFile), path.join(nitroTargetDir, nitroFile));
-  }
-  if (fileExists(path.join(nitroSourceDir, nitroMapFile)) && !fileExists(path.join(nitroTargetDir, nitroMapFile))) {
-    fs.mkdirSync(nitroTargetDir, { recursive: true });
-    fs.copyFileSync(path.join(nitroSourceDir, nitroMapFile), path.join(nitroTargetDir, nitroMapFile));
-  }
-  await onBuild(buildOptions);
-  await onPostBuild(buildOptions);
-  logSuccess('EdgeOne 构建流程完成');
-}
-
 // 检查环境变量
 function checkEnvironment() {
   logStep('🔍', '检查环境配置...');
@@ -123,6 +84,13 @@ function checkEnvironment() {
 // 主部署流程
 async function deploy() {
   log('🚀 开始部署流程...', 'bright');
+  
+  // 检测部署平台
+  const platform = process.env.EDGEONE ? 'EdgeOne Pages' : 
+                   process.env.VERCEL ? 'Vercel' : 
+                   process.env.NETLIFY ? 'Netlify' : 
+                   '其他平台';
+  log(`📦 检测到部署平台: ${platform}`, 'cyan');
   
   try {
     // 0. 检查环境
@@ -188,24 +156,10 @@ async function deploy() {
     
     // 5. 构建应用
     logStep('🔨', '构建应用...');
-    if (isEdgeOne) {
-      await runEdgeOneBuild();
-    } else if (!safeExec('npx nuxt build')) {
+    if (!safeExec('npx nuxt build')) {
       throw new Error('应用构建失败');
     }
     logSuccess('应用构建完成');
-    
-    if (isEdgeOne) {
-      if (!fileExists('.edgeone')) {
-        throw new Error('EdgeOne 构建输出目录不存在');
-      }
-      if (!fileExists('.edgeone/server-handler')) {
-        logWarning('EdgeOne 服务端目录不存在');
-      }
-      if (!fileExists('.edgeone/server-handler/handler.js')) {
-        logWarning('EdgeOne 入口函数文件不存在');
-      }
-    }
     
     // 6. 部署后检查
     logStep('🔍', '执行部署后检查...');

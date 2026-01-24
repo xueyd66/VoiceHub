@@ -76,10 +76,13 @@ export default defineNuxtConfig({
   
   // 服务器端配置
   nitro: {
+    preset: process.env.VERCEL ? 'vercel' : process.env.EDGEONE ? 'node-server' : (process.env.NITRO_PRESET || 'node-server'),
+    // 增强错误处理和稳定性
     experimental: {
       wasm: true
     },
-    timing: !(process.env.EDGEONE || process.env.TEO),
+    timing: true,
+    // 增加请求超时时间
     routeRules: {
       // 完全禁用所有API路由的缓存，确保每次都请求数据库
       '/api/**': {
@@ -147,11 +150,22 @@ export default defineNuxtConfig({
         }
       }
     },
-    output: {
-      dir: '.edgeone',
-      publicDir: '.edgeone/assets',
-      serverDir: '.edgeone/server-handler'
-    }
+    // 根据部署环境调整配置
+    ...(process.env.VERCEL ? {
+      // Vercel 环境：使用标准配置
+    } : process.env.NETLIFY ? {
+      // Netlify 环境：确保 Drizzle 正确打包
+      experimental: {
+        wasm: true
+      }
+    } : process.env.EDGEONE ? {
+      // EdgeOne Pages 环境：确保 Drizzle 正确打包
+      experimental: {
+        wasm: true
+      }
+    } : {
+      // 其他环境：使用标准配置
+    })
   },
   
   // Vite 配置
@@ -164,7 +178,7 @@ export default defineNuxtConfig({
     assetsInclude: ['**/*.wasm'],
     // SSR配置
     ssr: {
-      noExternal: process.env.NETLIFY ? ['drizzle-orm', 'postgres'] : (process.env.VERCEL ? [] : ['drizzle-orm', 'postgres'])
+      noExternal: process.env.NETLIFY || process.env.EDGEONE ? ['drizzle-orm', 'postgres'] : (process.env.VERCEL ? [] : ['drizzle-orm', 'postgres'])
     }
   }
 })

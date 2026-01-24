@@ -131,7 +131,7 @@ export default defineEventHandler(async (event) => {
             .from(songs)
             .leftJoin(users, eq(songs.requesterId, users.id))
             .where(whereCondition)
-        const total = totalResult[0].count
+        const total = Number(totalResult[0]?.count || 0)
 
         // 获取歌曲数据
         const songsData = await db.select({
@@ -146,6 +146,7 @@ export default defineEventHandler(async (event) => {
             cover: songs.cover,
             musicPlatform: songs.musicPlatform,
             musicId: songs.musicId,
+            playUrl: songs.playUrl,
             preferredPlayTimeId: songs.preferredPlayTimeId,
             requester: {
                 id: users.id,
@@ -321,7 +322,7 @@ export default defineEventHandler(async (event) => {
         const normalApiResult = {
             success: true,
             data: {
-                songs: songsWithDetails,
+                songs: formattedSongs,
                 total,
                 pagination: {
                     page,
@@ -333,8 +334,8 @@ export default defineEventHandler(async (event) => {
 
         // 使用与普通API相同的缓存键格式（变量已在前面声明）
 
-        await cache.set(normalApiCacheKey, normalApiResult, 180) // 3分钟缓存
-        console.log(`[OpenAPI Cache] 歌曲数据已缓存到普通API缓存: ${normalApiCacheKey}，数量: ${songsWithDetails.length}`)
+        await cache.set(normalApiCacheKey, normalApiResult) // 永久缓存，数据变更时主动失效
+        console.log(`[OpenAPI Cache] 歌曲数据已缓存到普通API缓存: ${normalApiCacheKey}，数量: ${formattedSongs.length}`)
 
         // 可选：也缓存到开放API专用缓存（保留原有逻辑，但优先级较低）
         const openApiCacheKey = openApiCache.generateKey('songs', {
