@@ -1,81 +1,62 @@
 import {db} from '~/drizzle/db'
 import {sql} from 'drizzle-orm'
 
+// 避免使用 useNitroApp，直接在插件定义中使用 nitroApp 实例
 export default defineNitroPlugin(async (nitroApp) => {
     // 全局未处理的Promise拒绝处理器
-    process.on('unhandledRejection', async (reason, promise) => {
-        console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+    // 注意：在某些 Serverless 环境中，process 对象可能不完整
+    if (typeof process !== 'undefined' && process.on) {
+        process.on('unhandledRejection', async (reason, promise) => {
+            console.error('Unhandled Rejection at:', promise, 'reason:', reason)
 
-        // 检查是否是数据库连接错误
-        if (reason && typeof reason === 'object' && 'message' in reason) {
-            const errorMessage = (reason as Error).message
+            // 检查是否是数据库连接错误
+            if (reason && typeof reason === 'object' && 'message' in reason) {
+                const errorMessage = (reason as Error).message
 
-            if (errorMessage.includes('ECONNRESET') ||
-                errorMessage.includes('ENOTFOUND') ||
-                errorMessage.includes('ETIMEDOUT') ||
-                errorMessage.includes('Connection terminated') ||
-                errorMessage.includes('Connection lost')) {
+                if (errorMessage.includes('ECONNRESET') ||
+                    errorMessage.includes('ENOTFOUND') ||
+                    errorMessage.includes('ETIMEDOUT') ||
+                    errorMessage.includes('Connection terminated') ||
+                    errorMessage.includes('Connection lost')) {
 
-                console.log('Database connection error detected, attempting to reconnect...')
+                    console.log('Database connection error detected, attempting to reconnect...')
 
-                try {
-                    // 尝试重新连接数据库
-                    // Note: Drizzle doesn't have explicit connect/disconnect methods
-                    // Connection is managed automatically
-                    await new Promise(resolve => setTimeout(resolve, 2000)) // 等待2秒
-                    console.log('Database reconnection successful')
-                } catch (reconnectError) {
-                    console.error('Database reconnection failed:', reconnectError)
-
-                    // 如果重连失败，等待更长时间后再次尝试
-                    setTimeout(async () => {
-                        try {
-                            // Note: Drizzle doesn't have explicit connect/disconnect methods
-                            await new Promise(resolve => setTimeout(resolve, 5000)) // 等待5秒
-                            console.log('Database delayed reconnection successful')
-                        } catch (delayedReconnectError) {
-                            console.error('Database delayed reconnection failed:', delayedReconnectError)
-                        }
-                    }, 10000) // 10秒后重试
+                    try {
+                        // 尝试重新连接数据库
+                        await new Promise(resolve => setTimeout(resolve, 2000)) // 等待2秒
+                        console.log('Database reconnection successful')
+                    } catch (reconnectError) {
+                        console.error('Database reconnection failed:', reconnectError)
+                    }
                 }
             }
-        }
 
-        // 不要让进程退出，继续运行
-        console.log('Process will continue running despite the error')
-    })
+            console.log('Process will continue running despite the error')
+        })
 
-    // 全局未捕获异常处理器
-    process.on('uncaughtException', (error) => {
-        console.error('Uncaught Exception:', error)
+        // 全局未捕获异常处理器
+        process.on('uncaughtException', (error) => {
+            console.error('Uncaught Exception:', error)
 
-        // 检查是否是数据库相关错误
-        if (error.message.includes('ECONNRESET') ||
-            error.message.includes('ENOTFOUND') ||
-            error.message.includes('ETIMEDOUT')) {
-            console.log('Database-related uncaught exception, process will continue')
-            return // 不退出进程
-        }
+            // 检查是否是数据库相关错误
+            if (error.message.includes('ECONNRESET') ||
+                error.message.includes('ENOTFOUND') ||
+                error.message.includes('ETIMEDOUT')) {
+                console.log('Database-related uncaught exception, process will continue')
+                return // 不退出进程
+            }
 
-        // 对于其他严重错误，记录但不退出
-        console.error('Non-database uncaught exception, process will continue')
-    })
+            console.error('Non-database uncaught exception, process will continue')
+        })
+    }
 
     // 定期健康检查
+    // 在 Serverless 环境中，定时器可能无法持久运行，但对于 Node Functions 仍有一定价值
     const healthCheckInterval = setInterval(async () => {
         try {
             await db.execute(sql`SELECT 1 as health_check`)
         } catch (error) {
             console.error('Health check failed:', error)
-
-            // 尝试重新连接
-            try {
-                // Note: Drizzle doesn't have explicit connect/disconnect methods
-                await new Promise(resolve => setTimeout(resolve, 1000))
-                console.log('Health check reconnection successful')
-            } catch (reconnectError) {
-                console.error('Health check reconnection failed:', reconnectError)
-            }
         }
     }, 60000) // 每分钟检查一次
 
@@ -85,8 +66,6 @@ export default defineNitroPlugin(async (nitroApp) => {
     })
 
     // 数据库连接错误的特殊处理
-    // Note: Drizzle handles connection management automatically
-    // We'll implement a simple retry mechanism for database operations
     const originalExecute = db.execute
     db.execute = new Proxy(originalExecute, {
         apply: async (target, thisArg, argumentsList) => {
@@ -99,7 +78,6 @@ export default defineNitroPlugin(async (nitroApp) => {
 
                     try {
                         await new Promise(resolve => setTimeout(resolve, 1000))
-
                         // 重试查询
                         return await target.apply(thisArg, argumentsList)
                     } catch (retryError) {
@@ -114,3 +92,4 @@ export default defineNitroPlugin(async (nitroApp) => {
 
     console.log('Global error handler initialized')
 })
+
