@@ -76,15 +76,10 @@ export default defineNuxtConfig({
   
   // 服务器端配置
   nitro: {
-    preset: process.env.EDGEONE || process.env.TEO
-      ? 'node-server'
-      : (process.env.VERCEL ? 'vercel' : (process.env.NITRO_PRESET || 'node-server')),
-    // 增强错误处理和稳定性
     experimental: {
       wasm: true
     },
     timing: !(process.env.EDGEONE || process.env.TEO),
-    // 增加请求超时时间
     routeRules: {
       // 完全禁用所有API路由的缓存，确保每次都请求数据库
       '/api/**': {
@@ -152,24 +147,11 @@ export default defineNuxtConfig({
         }
       }
     },
-    // 根据部署环境调整配置
-    ...(process.env.VERCEL ? {
-      // Vercel 环境：使用标准配置
-    } : process.env.NETLIFY ? {
-      // Netlify 环境：确保 Drizzle 正确打包
-      experimental: {
-        wasm: true
-      }
-    } : process.env.EDGEONE || process.env.TEO ? {
-      serveStatic: true,
-      output: {
-        dir: '.edgeone',
-        serverDir: '.edgeone/server-handler',
-        publicDir: '.edgeone/assets'
-      }
-    } : {
-      // 其他环境：使用标准配置
-    })
+    output: {
+      dir: '.edgeone',
+      publicDir: '.edgeone/assets',
+      serverDir: '.edgeone/server-handler',
+    }
   },
   
   // Vite 配置

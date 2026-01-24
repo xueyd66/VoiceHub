@@ -75,6 +75,9 @@ async function runEdgeOneBuild() {
     }
   };
   await onPreBuild(buildOptions);
+  if (!safeExec('npx nuxt build')) {
+    throw new Error('应用构建失败');
+  }
   await onBuild(buildOptions);
   await onPostBuild(buildOptions);
   logSuccess('EdgeOne 构建流程完成');
